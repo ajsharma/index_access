@@ -101,6 +101,8 @@ module IndexAccess
     end
 
     def generate_single_column_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |value|
         scope = where(column => value)
         scope = scope.where(where_clause) if where_clause
@@ -109,6 +111,8 @@ module IndexAccess
     end
 
     def generate_composite_scope(scope_name, columns, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       generator = self
       @model_class.define_singleton_method(scope_name) do |**args|
         generator.send(:validate_composite_arguments!, columns, args)
@@ -122,6 +126,8 @@ module IndexAccess
     end
 
     def generate_expression_scope(scope_name, expression, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |value|
         scope = where("(#{expression}) = ?", value)
         scope = scope.where(where_clause) if where_clause
@@ -130,6 +136,8 @@ module IndexAccess
     end
 
     def generate_jsonb_contains_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |hash|
         scope = where("#{column} @> ?", hash.to_json)
         scope = scope.where(where_clause) if where_clause
@@ -138,6 +146,8 @@ module IndexAccess
     end
 
     def generate_jsonb_contained_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |hash|
         scope = where("#{column} <@ ?", hash.to_json)
         scope = scope.where(where_clause) if where_clause
@@ -146,6 +156,8 @@ module IndexAccess
     end
 
     def generate_jsonb_has_key_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |key|
         scope = where("#{column} ? ?", key)
         scope = scope.where(where_clause) if where_clause
@@ -154,6 +166,8 @@ module IndexAccess
     end
 
     def generate_jsonb_has_keys_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |keys|
         # Handle array of keys properly for PostgreSQL
         keys_array = Array(keys)
@@ -165,6 +179,8 @@ module IndexAccess
     end
 
     def generate_jsonb_path_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |path, value|
         # Handle path as an array for JSONB path operations
         path_array = path.is_a?(Array) ? path : [path]
@@ -175,6 +191,8 @@ module IndexAccess
     end
 
     def generate_fulltext_expression_scope(scope_name, expression, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |query|
         scope = where("#{expression} @@ plainto_tsquery('english', ?)", query)
         scope = scope.where(where_clause) if where_clause
@@ -183,6 +201,8 @@ module IndexAccess
     end
 
     def generate_similarity_scope(scope_name, column, where_clause)
+      return if @model_class.respond_to?(scope_name)
+
       @model_class.define_singleton_method(scope_name) do |text, threshold = 0.3|
         scope = where("#{column} % ? AND similarity(#{column}, ?) > ?", text, text, threshold)
                 .order("similarity(#{column}, ?) DESC", text)
