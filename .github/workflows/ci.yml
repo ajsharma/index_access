@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: index_access_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.2', '3.3']
+        rails-version: ['7.1', '7.2', '8.0']
+
+    name: Ruby ${{ matrix.ruby-version }} - Rails ${{ matrix.rails-version }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler-cache: false
+
+    - name: Install PostgreSQL client
+      run: |
+        sudo apt-get -yqq install libpq-dev postgresql-client
+
+    - name: Setup database
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/index_access_test
+      run: |
+        psql -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;' $DATABASE_URL
+
+    - name: Install dependencies for Rails ${{ matrix.rails-version }}
+      env:
+        BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails-version }}.gemfile
+      run: |
+        # Install bundler version that matches the lockfile
+        gem install bundler:2.7.1
+        bundle install --jobs 4 --retry 3
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/index_access_test
+        BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails-version }}.gemfile
+      run: |
+        bundle exec rake test
+
+    - name: Run RuboCop
+      env:
+        BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails-version }}.gemfile
+      run: |
+        bundle exec rubocop
+      if: matrix.ruby-version == '3.3' && matrix.rails-version == '8.0'

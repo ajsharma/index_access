@@ -67,7 +67,7 @@ Note: you must pass in all arguments or you will get an ArgumentError
 ```ruby
 Todo.index_user_id_and_status(user_id: 123)
 # => ArgumentError => 'argument: 'status' is required'
-````
+```
 
 ### Partial Index Support
 
@@ -210,6 +210,9 @@ IndexAccess.configure do |config|
   
   # Specify which models to include (default: all)
   config.included_models = ['Todo', 'User']
+  
+  # Or exclude specific models
+  config.excluded_models = ['InternalLog', 'TempData']
 end
 ```
 
@@ -223,6 +226,8 @@ end
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
+
+Use `bin/go` to run the full development workflow (setup, tests, and linting).
 
 To install this gem onto your local machine, run `bundle exec rake install`.
 
