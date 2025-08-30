@@ -11,4 +11,12 @@ require "rubocop/rake_task"
 
 RuboCop::RakeTask.new
 
+begin
+  require "appraisal"
+  require "appraisal/task"
+  Appraisal::Task.new
+rescue LoadError
+  # Appraisal not available
+end
+
 task default: %i[test rubocop]

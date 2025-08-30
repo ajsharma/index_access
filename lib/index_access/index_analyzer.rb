@@ -10,12 +10,16 @@ module IndexAccess
     end
 
     def analyze_indexes
-      @analyze_indexes ||= begin
-        pg_indexes = fetch_postgresql_indexes
-        rails_indexes = @connection.indexes(@model_class.table_name)
-
-        merge_index_data(rails_indexes, pg_indexes)
-      end
+      @analyze_indexes ||= if use_schema_cache?
+                             # Use schema cache when available, fallback to direct queries for missing data
+                             rails_indexes = @connection.indexes(@model_class.table_name)
+                             enhance_rails_indexes_from_cache_or_db(rails_indexes)
+                           else
+                             # Original behavior: direct PostgreSQL queries
+                             pg_indexes = fetch_postgresql_indexes
+                             rails_indexes = @connection.indexes(@model_class.table_name)
+                             merge_index_data(rails_indexes, pg_indexes)
+                           end
     end
 
     def composite_indexes
@@ -64,6 +68,64 @@ module IndexAccess
       return if connection.adapter_name.downcase == "postgresql"
 
       raise IndexAccess::Error, "IndexAccess requires a PostgreSQL database connection"
+    end
+
+    def use_schema_cache?
+      # Check if ActiveRecord is configured to use schema cache dump
+      return false unless Rails.respond_to?(:application) && Rails.application
+
+      config = Rails.application.config
+      return false unless config.respond_to?(:active_record)
+
+      ar_config = config.active_record
+      ar_config.respond_to?(:use_schema_cache_dump) && ar_config.use_schema_cache_dump == true
+    rescue StandardError
+      false
+    end
+
+    def enhance_rails_indexes_from_cache_or_db(rails_indexes)
+      # Try to get additional PostgreSQL-specific data from cache first
+      # Fall back to direct database queries only when necessary
+      rails_indexes.map do |rails_index|
+        cached_pg_data = get_cached_postgres_data(rails_index.name)
+
+        if cached_pg_data&.complete?
+          build_index_hash(rails_index, cached_pg_data)
+        else
+          # Fallback: fetch specific index data from database
+          pg_data = fetch_single_postgresql_index(rails_index.name)
+          build_index_hash(rails_index, pg_data)
+        end
+      end
+    end
+
+    def get_cached_postgres_data(_index_name)
+      # ActiveRecord's schema cache doesn't include PostgreSQL-specific index data
+      # like operator classes, using method, etc. Return nil to trigger fallback
+      nil
+    end
+
+    def fetch_single_postgresql_index(index_name)
+      query = <<~SQL
+        SELECT#{" "}
+          i.indexname as name,
+          i.indexdef as definition,
+          am.amname as using,
+          idx.indisunique as unique,
+          pg_get_expr(idx.indpred, idx.indrelid) as where_clause
+        FROM pg_indexes i
+        JOIN pg_class c ON c.relname = i.tablename
+        JOIN pg_index idx ON idx.indrelid = c.oid
+        JOIN pg_class ic ON ic.oid = idx.indexrelid
+        JOIN pg_am am ON am.oid = ic.relam
+        WHERE i.schemaname = 'public'#{" "}
+          AND i.tablename = $1
+          AND i.indexname = $2
+          AND NOT idx.indisprimary
+      SQL
+
+      result = connection.exec_query(query, "SCHEMA", [@model_class.table_name, index_name])
+      result.first
     end
 
     def fetch_postgresql_indexes
