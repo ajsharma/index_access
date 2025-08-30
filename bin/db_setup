@@ -1,0 +1,233 @@
+#!/usr/bin/env ruby
+require "dotenv/load"
+require "pg"
+require "active_record"
+require "fileutils"
+
+# Check and create local PostgreSQL database if needed
+def ensure_local_postgres
+  unless system("which psql > /dev/null 2>&1")
+    puts "PostgreSQL not found. Please install PostgreSQL first:"
+    puts "  macOS: brew install postgresql"
+    puts "  Ubuntu: sudo apt-get install postgresql postgresql-contrib"
+    exit 1
+  end
+
+  # Start PostgreSQL if not running
+  return if system("pg_isready > /dev/null 2>&1")
+
+  puts "Starting PostgreSQL..."
+  if system("which brew > /dev/null 2>&1")
+    system("brew services start postgresql")
+  else
+    puts "Please start PostgreSQL manually: sudo service postgresql start"
+    exit 1
+  end
+  sleep 2
+end
+
+# Create .env.local if it doesn't exist
+def ensure_env_local
+  env_local_path = ".env.local"
+
+  return if File.exist?(env_local_path)
+
+  puts "Creating .env.local file..."
+
+  # Use local PostgreSQL defaults
+  host = "localhost"
+  port = "5432"
+  username = ENV["USER"] || "postgres"
+  password = ""
+
+  # Create POSTGRES_URL format for both dev and test
+  dev_url = "postgresql://#{username}:#{password}@#{host}:#{port}/index_access_development"
+  test_url = "postgresql://#{username}:#{password}@#{host}:#{port}/index_access_test"
+
+  env_content = <<~ENV
+    # Local PostgreSQL configuration
+    POSTGRES_HOST=#{host}
+    POSTGRES_PORT=#{port}
+    POSTGRES_USER=#{username}
+    POSTGRES_PASSWORD=#{password}
+
+    # Database URLs
+    DATABASE_URL=#{dev_url}
+    TEST_DATABASE_URL=#{test_url}
+  ENV
+
+  File.write(env_local_path, env_content)
+  puts "Created .env.local with local PostgreSQL configuration"
+
+  # Reload environment
+  require "dotenv"
+  Dotenv.load(".env.local")
+end
+
+# Database configuration
+def db_config(database_name)
+  {
+    adapter: "postgresql",
+    host: ENV["POSTGRES_HOST"] || "localhost",
+    port: ENV["POSTGRES_PORT"] || 5432,
+    database: database_name,
+    username: ENV["POSTGRES_USER"] || ENV["USER"] || "postgres",
+    password: ENV["POSTGRES_PASSWORD"] || ""
+  }
+end
+
+# Connect without specifying database to create databases
+def connect_without_db
+  config = db_config("postgres")
+  ActiveRecord::Base.establish_connection(config)
+end
+
+# Create local PostgreSQL user if needed
+def ensure_postgres_user
+  username = ENV["POSTGRES_USER"] || ENV["USER"] || "postgres"
+
+  # Skip if user is 'postgres' (system default)
+  return if username == "postgres"
+
+  connect_without_db
+  connection = ActiveRecord::Base.connection
+
+  # Check if user exists
+  result = connection.execute("SELECT 1 FROM pg_roles WHERE rolname = '#{username}'")
+
+  if result.none?
+    puts "Creating PostgreSQL user: #{username}"
+    connection.execute("CREATE USER #{username} WITH CREATEDB")
+  end
+rescue StandardError
+  puts "Note: Could not create user #{username}. Using existing setup."
+end
+
+# Create database if it doesn't exist
+def create_database(db_name)
+  connect_without_db
+  connection = ActiveRecord::Base.connection
+
+  if connection.execute("SELECT 1 FROM pg_database WHERE datname = '#{db_name}'").none?
+    puts "Creating database: #{db_name}"
+    connection.execute("CREATE DATABASE #{db_name}")
+  else
+    puts "Database #{db_name} already exists"
+  end
+rescue StandardError => e
+  puts "Error creating database #{db_name}: #{e.message}"
+  puts "Make sure PostgreSQL is running and you have necessary permissions"
+  exit 1
+end
+
+# Setup database schema
+def setup_schema(database_name)
+  puts "Setting up schema for #{database_name}..."
+
+  ActiveRecord::Base.establish_connection(db_config(database_name))
+
+  # Enable extensions
+  ActiveRecord::Base.connection.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+
+  # Create schema
+  ActiveRecord::Schema.define do
+    # Drop tables if they exist (for clean setup)
+    drop_table :todos if table_exists?(:todos)
+    drop_table :users if table_exists?(:users)
+    drop_table :documents if table_exists?(:documents)
+
+    create_table :todos do |t|
+      t.string :title
+      t.text :description
+      t.integer :user_id
+      t.string :status
+      t.date :due_at
+      t.string :priority
+      t.boolean :completed, default: false
+      t.jsonb :metadata, default: {}
+      t.text :content
+      t.tsvector :search_vector
+      t.timestamps
+    end
+
+    create_table :users do |t|
+      t.string :name
+      t.string :email
+      t.jsonb :preferences, default: {}
+      t.timestamps
+    end
+
+    create_table :documents do |t|
+      t.string :title
+      t.text :body
+      t.jsonb :tags, default: []
+      t.point :coordinates
+      t.timestamps
+    end
+
+    # Standard B-tree indexes
+    add_index :todos, :user_id, name: "index_todos_on_user_id"
+    add_index :todos, :due_at, name: "index_todos_on_due_at"
+    add_index :todos, %i[user_id status], name: "index_todos_on_user_id_and_status"
+
+    # Partial index
+    add_index :todos, :due_at, where: "completed = false", name: "index_todos_on_due_at_incomplete"
+
+    # GIN indexes for JSONB
+    add_index :todos, :metadata, using: :gin, name: "index_todos_on_metadata_gin"
+    add_index :users, :preferences, using: :gin, name: "index_users_on_preferences_gin"
+    add_index :documents, :tags, using: :gin, name: "index_documents_on_tags_gin"
+
+    # GIN index for full-text search
+    add_index :todos, :search_vector, using: :gin, name: "index_todos_on_search_vector_gin"
+
+    # GIN index for trigram similarity
+    if extension_enabled?("pg_trgm")
+      add_index :todos, :title, using: :gin, opclass: :gin_trgm_ops,
+                                name: "index_todos_on_title_trgm"
+    end
+
+    # GiST index for geometric data
+    add_index :documents, :coordinates, using: :gist, name: "index_documents_on_coordinates_gist"
+
+    # Expression index
+    add_index :todos, "lower(title)", name: "index_todos_on_lower_title"
+    add_index :todos, "to_tsvector('english', title || ' ' || COALESCE(description, ''))",
+              using: :gin,
+              name: "index_todos_fulltext_gin"
+  end
+
+  puts "Schema setup complete for #{database_name}"
+end
+
+def extension_enabled?(extension_name)
+  ActiveRecord::Base.connection.extension_enabled?(extension_name)
+rescue StandardError
+  false
+end
+
+# Main script
+puts "Setting up PostgreSQL databases for development and testing..."
+
+# Ensure PostgreSQL is available and running
+ensure_local_postgres
+
+# Create .env.local if it doesn't exist
+ensure_env_local
+
+# Create PostgreSQL user if needed
+ensure_postgres_user
+
+# Create databases
+create_database("index_access_development")
+create_database("index_access_test")
+
+# Setup schemas
+setup_schema("index_access_development")
+setup_schema("index_access_test")
+
+puts "\nDatabase setup complete!"
+puts "Development database: index_access_development"
+puts "Test database: index_access_test"
+puts "\nConfiguration saved in .env.local"
+puts "You can now run your tests or start development."

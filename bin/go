@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running IndexAccess development checks..."
+
+# Load environment variables if .env exists
+if [ -f .env ]; then
+  echo "Loading .env..."
+  set -a
+  source .env
+  set +a
+fi
+
+# Run setup
+echo "Running setup..."
+./bin/setup
+
+# Run tests
+echo "Running tests..."
+bundle exec rake test
+
+# Run linters  
+echo "Running linters..."
+bundle exec rubocop -A
+
+echo "All checks passed!"

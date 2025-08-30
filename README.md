@@ -1,12 +1,12 @@
 # IndexAccess
 
-A Ruby gem that allows developers to write ActiveRecord queries against database indexes directly, providing automatic scope generation for optimized database queries.
+A PostgreSQL-focused Ruby gem that leverages advanced indexing features to automatically generate optimized ActiveRecord scopes. Supports GIN, GiST, partial, expression indexes and more.
 
 ## Overview
 
-IndexAccess automatically generates ActiveRecord scopes based on your database indexes, making it easy to write queries that are guaranteed to use database indexes for optimal performance.
+IndexAccess automatically generates ActiveRecord scopes based on your PostgreSQL indexes, making it easy to write queries that are guaranteed to use database indexes for optimal performance. It goes beyond basic B-tree indexes to support PostgreSQL's advanced features like JSONB operations, full-text search, and similarity matching.
 
-For instance, if the table `todos` has an index on `due_at` called `index_due_at`, developers can write `Todo.index_due_at` as a scope, automatically adding the where clauses that match the index structure.
+For instance, if the table `todos` has a GIN index on a JSONB `metadata` column, developers can write `Todo.index_metadata_contains({status: 'urgent'})` to perform optimized JSONB containment queries.
 
 ## Installation
 
@@ -30,9 +30,9 @@ $ gem install index_access
 
 ## Usage
 
-### Basic Example
+### Basic B-tree Index Example
 
-Given a `todos` table with an index:
+Given a `todos` table with a standard index:
 
 ```sql
 CREATE INDEX index_todos_on_due_at ON todos (due_at);
@@ -81,6 +81,78 @@ The generated scope will automatically include the partial index conditions:
 
 ```ruby
 Todo.index_due_at(some_date)  # Automatically includes WHERE completed = false
+```
+
+### JSONB GIN Index Support
+
+For JSONB columns with GIN indexes:
+
+```sql
+CREATE INDEX index_todos_on_metadata ON todos USING gin (metadata);
+```
+
+IndexAccess generates multiple optimized scopes:
+
+```ruby
+# Containment queries (@>)
+Todo.index_metadata_contains({priority: 'high', category: 'work'})
+
+# Contained by queries (<@)  
+Todo.index_metadata_contained({priority: 'high', category: 'work', status: 'pending'})
+
+# Key existence queries (?)
+Todo.index_metadata_has_key('priority')
+
+# Multiple key existence (?&)
+Todo.index_metadata_has_keys(['priority', 'category'])
+
+# Path-based queries (#>>)
+Todo.index_metadata_path('user.preferences.theme', 'dark')
+```
+
+### Full-Text Search with GIN Indexes
+
+For tsvector columns or expression indexes:
+
+```sql
+CREATE INDEX index_todos_fulltext ON todos USING gin (to_tsvector('english', title || ' ' || description));
+```
+
+Generated scope for full-text search:
+
+```ruby
+# Full-text search using @@
+Todo.index_todos_fulltext_search('urgent deadline')
+```
+
+### Trigram Similarity with GIN Indexes
+
+For fuzzy string matching:
+
+```sql
+CREATE INDEX index_todos_title_trgm ON todos USING gin (title gin_trgm_ops);
+```
+
+Generated scope:
+
+```ruby
+# Similarity search with configurable threshold
+Todo.index_title_similar('importante', 0.3)  # Returns results ordered by similarity
+```
+
+### Expression Index Support
+
+For expression indexes:
+
+```sql
+CREATE INDEX index_todos_lower_title ON todos (lower(title));
+```
+
+Generated scope:
+
+```ruby
+# Automatically uses the expression index
+Todo.index_lower_title('my important task')
 ```
 
 ### Chaining Index Scopes
@@ -144,7 +216,9 @@ end
 ## Requirements
 
 - Ruby 3.0+
-- Rails 7.0+
+- Rails 7.0+  
+- PostgreSQL 12+
+- pg gem 1.1+
 
 ## Development
 
