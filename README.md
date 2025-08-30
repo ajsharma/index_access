@@ -1,12 +1,50 @@
 # IndexAccess
 
-A PostgreSQL-focused Ruby gem that leverages advanced indexing features to automatically generate optimized ActiveRecord scopes. Supports GIN, GiST, partial, expression indexes and more.
+⚡ **Write index-aware Rails code with confidence.** IndexAccess automatically generates ActiveRecord scopes that make it clear which queries are designed to leverage your PostgreSQL indexes.
 
-## Overview
+```ruby
+# Before: Unclear relationship to your indexes
+Todo.where(metadata: {priority: 'high'})  # Will this use your GIN index?
+Todo.where('title ILIKE ?', '%urgent%')   # What about your trigram index?
 
-IndexAccess automatically generates ActiveRecord scopes based on your PostgreSQL indexes, making it easy to write queries that are guaranteed to use database indexes for optimal performance. It goes beyond basic B-tree indexes to support PostgreSQL's advanced features like JSONB operations, full-text search, and similarity matching.
+# After: Index-aware code that documents intent
+Todo.index_metadata_contains(priority: 'high')  # Clearly designed for GIN index
+Todo.index_title_similar('urgent', 0.3)         # Obviously uses trigram matching
+```
 
-For instance, if the table `todos` has a GIN index on a JSONB `metadata` column, developers can write `Todo.index_metadata_contains({status: 'urgent'})` to perform optimized JSONB containment queries.
+## Why Your Rails App Needs IndexAccess
+
+- **Prevent Accidental Performance Issues** - Make index-optimized queries explicit and maintainable  
+- **Unlock Advanced PostgreSQL** - Use JSONB, full-text search, and trigram matching with clean Ruby syntax  
+- **Self-Documenting Code** - Show which queries are designed to leverage specific indexes  
+- **Performance-Friendly Readability** - Write code that clearly indicates its optimization strategy
+
+## The Hidden Problem Killing Your App's Performance
+
+As Rails applications scale, teams optimize with PostgreSQL indexes. But here's what happens next:
+
+```ruby
+# You carefully craft an index
+CREATE INDEX CONCURRENTLY idx_todos_user_status ON todos (user_id, status);
+
+# Months later, someone "improves" the code
+# OLD: Todo.where(user_id: user.id, status: 'pending')  ✅ Uses index
+# NEW: Todo.where(user_id: user.id).where(status: 'pending')  ❌ Might not!
+
+# Result: Queries slow down, customers complain, incidents happen
+```
+
+**The real problem:** Rails makes it unclear when queries are designed to leverage indexes. Teams lose track of which optimizations exist and how to use them properly.
+
+## The IndexAccess Solution
+
+IndexAccess reads your PostgreSQL indexes and generates explicit, readable scopes that:
+- **Make index-optimized queries obvious** in your application code
+- **Document the relationship** between queries and database structure
+- **Provide clean syntax** for advanced PostgreSQL features
+- **Help maintain performance** by making optimization strategies visible
+
+Instead of guessing whether your `.where()` chains will be fast, you write code that clearly shows its performance intent.
 
 ## Installation
 
@@ -28,25 +66,28 @@ Or install it yourself as:
 $ gem install index_access
 ```
 
-## Usage
+## Quick Start
 
-### Basic B-tree Index Example
+IndexAccess works by analyzing your existing PostgreSQL indexes and generating corresponding ActiveRecord scopes. Just add the gem and start using your indexes safely.
 
-Given a `todos` table with a standard index:
-
-```sql
-CREATE INDEX index_todos_on_due_at ON todos (due_at);
-```
-
-IndexAccess will automatically generate a scope:
+### 30-Second Example
 
 ```ruby
-# Instead of writing:
-Todo.where(due_at: some_date)
+# 1. Add IndexAccess to your model
+class Todo < ApplicationRecord
+  include IndexAccess::ModelExtension
+end
 
-# You can write:
-Todo.index_due_at(some_date)
+# 2. Your existing index becomes a readable scope
+# CREATE INDEX index_todos_on_due_at ON todos (due_at);
+Todo.index_due_at(Date.today)  # Clear intent to use due_at index
+
+# 3. Composite indexes become type-safe methods  
+# CREATE INDEX idx_user_status ON todos (user_id, status);
+Todo.index_user_id_and_status(user_id: 123, status: 'pending')
 ```
+
+## Advanced PostgreSQL Features Made Simple
 
 ### Composite Index Example
 
@@ -83,31 +124,23 @@ The generated scope will automatically include the partial index conditions:
 Todo.index_due_at(some_date)  # Automatically includes WHERE completed = false
 ```
 
-### JSONB GIN Index Support
+### 🚀 JSONB Operations (No SQL Required)
 
-For JSONB columns with GIN indexes:
+Stop writing raw SQL for JSONB queries. IndexAccess turns your GIN indexes into intuitive Ruby methods:
 
 ```sql
 CREATE INDEX index_todos_on_metadata ON todos USING gin (metadata);
 ```
 
-IndexAccess generates multiple optimized scopes:
-
 ```ruby
-# Containment queries (@>)
-Todo.index_metadata_contains({priority: 'high', category: 'work'})
+# Complex JSONB queries become simple method calls
+Todo.index_metadata_contains(priority: 'high', category: 'work')    # @> operator
+Todo.index_metadata_contained({priority: 'high', status: 'done'})   # <@ operator  
+Todo.index_metadata_has_key('priority')                             # ? operator
+Todo.index_metadata_has_keys(['priority', 'category'])              # ?& operator
+Todo.index_metadata_path('user.preferences.theme', 'dark')          # #>> operator
 
-# Contained by queries (<@)  
-Todo.index_metadata_contained({priority: 'high', category: 'work', status: 'pending'})
-
-# Key existence queries (?)
-Todo.index_metadata_has_key('priority')
-
-# Multiple key existence (?&)
-Todo.index_metadata_has_keys(['priority', 'category'])
-
-# Path-based queries (#>>)
-Todo.index_metadata_path('user.preferences.theme', 'dark')
+# All queries are structured to work well with your GIN index
 ```
 
 ### Full-Text Search with GIN Indexes
