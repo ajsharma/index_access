@@ -15,9 +15,9 @@ fi
 echo "Running setup..."
 ./bin/setup
 
-# Run tests
-echo "Running tests..."
-bundle exec rake test
+# Run tests across all Rails versions
+echo "Running tests across all Rails versions..."
+bundle exec appraisal rake test
 
 # Run linters  
 echo "Running linters..."
