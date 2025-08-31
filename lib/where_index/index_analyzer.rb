@@ -161,12 +161,14 @@ module WhereIndex
 
     def build_index_hash(rails_index, pg_data)
       columns = normalize_columns(rails_index.columns)
+      where_clause = rails_index.where || pg_data&.fetch("where_clause")
 
       {
         name: rails_index.name,
         columns: columns,
         unique: rails_index.unique,
-        where: rails_index.where,
+        where: where_clause,
+        where_conditions: parse_where_conditions(where_clause),
         type: rails_index.type,
         using: pg_data&.fetch("using", "btree"),
         expression: extract_expression(columns),
@@ -194,6 +196,47 @@ module WhereIndex
     def jsonb_column?(column_name)
       column = @model_class.columns.find { |c| c.name == column_name }
       column&.type == :jsonb
+    end
+
+    def parse_where_conditions(where_clause)
+      return {} if where_clause.blank?
+
+      conditions = {}
+      parse_equality_conditions(where_clause, conditions)
+      parse_boolean_conditions(where_clause, conditions)
+      parse_null_conditions(where_clause, conditions)
+      parse_not_null_conditions(where_clause, conditions)
+      conditions
+    end
+
+    def parse_equality_conditions(where_clause, conditions)
+      equality_matches = where_clause.scan(/\(?(\w+)\s*=\s*'([^']+)'\)?/)
+      equality_matches.each do |column, value|
+        conditions[column.to_sym] = value
+      end
+    end
+
+    def parse_boolean_conditions(where_clause, conditions)
+      boolean_matches = where_clause.scan(/\(?(\w+)\s*=\s*(true|false)\)?/)
+      boolean_matches.each do |column, value|
+        conditions[column.to_sym] = value == "true"
+      end
+    end
+
+    def parse_null_conditions(where_clause, conditions)
+      null_matches = where_clause.scan(/\(?(\w+)\s+IS\s+NULL\)?/i)
+      null_matches.each do |column_match|
+        column = column_match.is_a?(Array) ? column_match.first : column_match
+        conditions[column.to_sym] = nil
+      end
+    end
+
+    def parse_not_null_conditions(where_clause, conditions)
+      not_null_matches = where_clause.scan(/\(?(\w+)\s+IS\s+NOT\s+NULL\)?/i)
+      not_null_matches.each do |column_match|
+        column = column_match.is_a?(Array) ? column_match.first : column_match
+        conditions[:"#{column}_not_null"] = true
+      end
     end
   end
 end

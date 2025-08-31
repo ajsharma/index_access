@@ -33,7 +33,10 @@ module WhereIndex
       columns = index[:columns]
       where_clause = index[:where]
 
-      if index[:expression]
+      # Generate specialized partial index scope if this is a partial index
+      if where_clause.present?
+        generate_partial_index_scope(index)
+      elsif index[:expression]
         generate_expression_scope(scope_name, index[:expression], where_clause)
       elsif columns.size == 1
         generate_single_column_scope(scope_name, columns.first, where_clause)
@@ -85,6 +88,12 @@ module WhereIndex
 
     def build_scope_name(index)
       prefix = WhereIndex.configuration.scope_prefix
+
+      # For partial indexes, use the index name to create more descriptive names
+      if index[:where].present? && index[:where_conditions].present?
+        return build_partial_index_scope_name(index, prefix)
+      end
+
       # Check if any column contains expressions (functions, operators, etc.)
       has_expressions = index[:columns].any? { |col| col.include?("(") || col.include?("::") }
 
@@ -219,6 +228,55 @@ module WhereIndex
       return if missing_args.empty?
 
       raise ArgumentError, "Missing required arguments: #{missing_args.join(", ")}"
+    end
+
+    def build_partial_index_scope_name(index, _prefix)
+      # Use the index name directly, cleaning it up for readability
+      # Example: "idx_todos_user_pending" becomes "idx_todos_user_pending"
+      clean_name = index[:name].gsub(/^(index_|idx_)/, "")
+      clean_name.to_s
+    end
+
+    def generate_partial_index_scope(index)
+      scope_name = build_partial_index_scope_name(index, WhereIndex.configuration.scope_prefix)
+      return if @model_class.respond_to?(scope_name)
+
+      columns = index[:columns]
+      where_clause = index[:where]
+      where_conditions = index[:where_conditions]
+
+      if columns.size == 1
+        generate_partial_single_column_scope(scope_name, columns.first, where_clause, where_conditions)
+      else
+        generate_partial_composite_scope(scope_name, columns, where_clause, where_conditions)
+      end
+    end
+
+    def generate_partial_single_column_scope(scope_name, column, where_clause, _where_conditions)
+      @model_class.define_singleton_method(scope_name) do |value = nil|
+        # Always apply the partial index WHERE clause
+        scope = where(where_clause)
+        # If a value is provided, also filter by the indexed column
+        scope = scope.where(column => value) if value.present?
+        scope
+      end
+    end
+
+    def generate_partial_composite_scope(scope_name, columns, where_clause, _where_conditions)
+      generator = self
+      @model_class.define_singleton_method(scope_name) do |**args|
+        # Always apply the partial index WHERE clause
+        scope = where(where_clause)
+
+        # If arguments are provided, validate and apply them
+        if args.present?
+          generator.send(:validate_composite_arguments!, columns, args)
+          required_columns = columns.map { |col| col.to_s.to_sym }
+          scope = scope.where(args.slice(*required_columns))
+        end
+
+        scope
+      end
     end
   end
 end

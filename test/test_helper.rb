@@ -89,8 +89,9 @@ ActiveRecord::Schema.define do
   add_index :todos, :due_at, name: "index_todos_on_due_at"
   add_index :todos, %i[user_id status], name: "index_todos_on_user_id_and_status"
 
-  # Partial index
+  # Partial indexes
   add_index :todos, :due_at, where: "completed = false", name: "index_todos_on_due_at_incomplete"
+  add_index :todos, :user_id, where: "status = 'pending'", name: "idx_todos_user_pending"
 
   # GIN indexes for JSONB
   add_index :todos, :metadata, using: :gin, name: "index_todos_on_metadata_gin"
