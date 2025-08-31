@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    index_access (0.1.0)
+    where_index (0.1.0)
       activerecord (>= 7.0)
       activesupport (>= 7.0)
       pg (>= 1.1)
@@ -265,12 +265,12 @@ DEPENDENCIES
   activesupport (~> 7.1.0)
   appraisal (~> 2.4)
   dotenv (~> 2.8)
-  index_access!
   minitest (~> 5.0)
   pg (~> 1.1)
   rails (~> 7.1.0)
   rake (~> 13.0)
   rubocop (~> 1.21)
+  where_index!
 
 BUNDLED WITH
    2.7.1

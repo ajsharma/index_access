@@ -1,30 +1,30 @@
 require "test_helper"
 
-class TestIndexAccess < Minitest::Test
+class TestWhereIndex < Minitest::Test
   def test_that_it_has_a_version_number
-    refute_nil ::IndexAccess::VERSION
+    refute_nil ::WhereIndex::VERSION
   end
 
   def test_configuration
-    IndexAccess.configure do |config|
+    WhereIndex.configure do |config|
       config.scope_prefix = "via_"
       config.auto_generate = false
     end
 
-    assert_equal "via_", IndexAccess.configuration.scope_prefix
-    assert_equal false, IndexAccess.configuration.auto_generate
+    assert_equal "via_", WhereIndex.configuration.scope_prefix
+    assert_equal false, WhereIndex.configuration.auto_generate
 
-    IndexAccess.reset_configuration!
+    WhereIndex.reset_configuration!
   end
 
   def test_include_model_with_empty_included_models
-    config = IndexAccess::Configuration.new
+    config = WhereIndex::Configuration.new
     assert config.include_model?("Todo")
     assert config.include_model?("User")
   end
 
   def test_include_model_with_included_models
-    config = IndexAccess::Configuration.new
+    config = WhereIndex::Configuration.new
     config.included_models = ["Todo"]
 
     assert config.include_model?("Todo")
@@ -32,7 +32,7 @@ class TestIndexAccess < Minitest::Test
   end
 
   def test_include_model_with_excluded_models
-    config = IndexAccess::Configuration.new
+    config = WhereIndex::Configuration.new
     config.excluded_models = ["User"]
 
     assert config.include_model?("Todo")

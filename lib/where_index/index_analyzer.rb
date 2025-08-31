@@ -1,4 +1,4 @@
-module IndexAccess
+module WhereIndex
   class IndexAnalyzer
     POSTGRES_INDEX_TYPES = %w[btree hash gin gist spgist brin].freeze
     JSONB_OPERATORS = %w[? ?& ?| @> <@ @? @@].freeze

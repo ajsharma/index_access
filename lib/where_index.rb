@@ -1,14 +1,14 @@
 require "active_record"
 require "active_support"
 
-require_relative "index_access/version"
-require_relative "index_access/configuration"
-require_relative "index_access/index_analyzer"
-require_relative "index_access/scope_generator"
-require_relative "index_access/model_extension"
-require_relative "index_access/railtie" if defined?(Rails)
+require_relative "where_index/version"
+require_relative "where_index/configuration"
+require_relative "where_index/index_analyzer"
+require_relative "where_index/scope_generator"
+require_relative "where_index/model_extension"
+require_relative "where_index/railtie" if defined?(Rails)
 
-module IndexAccess
+module WhereIndex
   class Error < StandardError; end
 
   class << self

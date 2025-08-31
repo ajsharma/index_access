@@ -1,8 +1,8 @@
-require_relative "lib/index_access/version"
+require_relative "lib/where_index/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "index_access"
-  spec.version = IndexAccess::VERSION
+  spec.name = "where_index"
+  spec.version = WhereIndex::VERSION
   spec.authors = ["Ajay Sharma"]
   spec.email = ["aj@ajsharma.com"]
 
@@ -12,13 +12,13 @@ Gem::Specification.new do |spec|
     generate matching ActiveRecord scopes, including support for GIN, GiST, partial,
     and expression indexes.
   DESCRIPTION
-  spec.homepage = "https://github.com/ajsharma/index_access"
+  spec.homepage = "https://github.com/ajsharma/where_index"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/ajsharma/index_access"
-  spec.metadata["changelog_uri"] = "https://github.com/ajsharma/index_access/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/ajsharma/where_index"
+  spec.metadata["changelog_uri"] = "https://github.com/ajsharma/where_index/blob/main/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   # Specify which files should be added to the gem when it is released.

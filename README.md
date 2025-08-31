@@ -1,6 +1,6 @@
-# IndexAccess
+# WhereIndex
 
-⚡ **Write index-aware Rails code with confidence.** IndexAccess automatically generates ActiveRecord scopes that make it clear which queries are designed to leverage your PostgreSQL indexes.
+**Write index-aware Rails code with confidence.** WhereIndex automatically generates ActiveRecord scopes that make it clear which queries are designed to leverage your PostgreSQL indexes.
 
 ```ruby
 # Before: Unclear relationship to your indexes
@@ -8,11 +8,11 @@ Todo.where(metadata: {priority: 'high'})  # Will this use your GIN index?
 Todo.where('title ILIKE ?', '%urgent%')   # What about your trigram index?
 
 # After: Index-aware code that documents intent
-Todo.index_metadata_contains(priority: 'high')  # Clearly designed for GIN index
-Todo.index_title_similar('urgent', 0.3)         # Obviously uses trigram matching
+Todo.where_index_metadata_contains(priority: 'high')  # Clearly designed for GIN index
+Todo.where_index_title_similar('urgent', 0.3)         # Obviously uses trigram matching
 ```
 
-## Why Your Rails App Needs IndexAccess
+## Why Your Rails App Needs WhereIndex
 
 - **Prevent Accidental Performance Issues** - Make index-optimized queries explicit and maintainable  
 - **Unlock Advanced PostgreSQL** - Use JSONB, full-text search, and trigram matching with clean Ruby syntax  
@@ -36,9 +36,9 @@ CREATE INDEX CONCURRENTLY idx_todos_user_status ON todos (user_id, status);
 
 **The real problem:** Rails makes it unclear when queries are designed to leverage indexes. Teams lose track of which optimizations exist and how to use them properly.
 
-## The IndexAccess Solution
+## The WhereIndex Solution
 
-IndexAccess reads your PostgreSQL indexes and generates explicit, readable scopes that:
+WhereIndex reads your PostgreSQL indexes and generates explicit, readable scopes that:
 - **Make index-optimized queries obvious** in your application code
 - **Document the relationship** between queries and database structure
 - **Provide clean syntax** for advanced PostgreSQL features
@@ -51,7 +51,7 @@ Instead of guessing whether your `.where()` chains will be fast, you write code 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'index_access'
+gem 'where_index'
 ```
 
 And then execute:
@@ -63,28 +63,28 @@ $ bundle install
 Or install it yourself as:
 
 ```bash
-$ gem install index_access
+$ gem install where_index
 ```
 
 ## Quick Start
 
-IndexAccess works by analyzing your existing PostgreSQL indexes and generating corresponding ActiveRecord scopes. Just add the gem and start using your indexes safely.
+WhereIndex works by analyzing your existing PostgreSQL indexes and generating corresponding ActiveRecord scopes. Just add the gem and start using your indexes safely.
 
 ### 30-Second Example
 
 ```ruby
-# 1. Add IndexAccess to your model
+# 1. Add WhereIndex to your model
 class Todo < ApplicationRecord
-  include IndexAccess::ModelExtension
+  include WhereIndex::ModelExtension
 end
 
 # 2. Your existing index becomes a readable scope
 # CREATE INDEX index_todos_on_due_at ON todos (due_at);
-Todo.index_due_at(Date.today)  # Clear intent to use due_at index
+Todo.where_index_due_at(Date.today)  # Clear intent to use due_at index
 
 # 3. Composite indexes become type-safe methods  
 # CREATE INDEX idx_user_status ON todos (user_id, status);
-Todo.index_user_id_and_status(user_id: 123, status: 'pending')
+Todo.where_index_user_id_and_status(user_id: 123, status: 'pending')
 ```
 
 ## Advanced PostgreSQL Features Made Simple
@@ -100,13 +100,13 @@ CREATE INDEX index_todos_on_user_id_and_status ON todos (user_id, status);
 You can use:
 
 ```ruby
-Todo.index_user_id_and_status(user_id: 123, status: 'pending')
+Todo.where_index_user_id_and_status(user_id: 123, status: 'pending')
 ```
 
 Note: you must pass in all arguments or you will get an ArgumentError
 
 ```ruby
-Todo.index_user_id_and_status(user_id: 123)
+Todo.where_index_user_id_and_status(user_id: 123)
 # => ArgumentError => 'argument: 'status' is required'
 ```
 
@@ -121,12 +121,12 @@ CREATE INDEX index_todos_on_due_at WHERE completed = false;
 The generated scope will automatically include the partial index conditions:
 
 ```ruby
-Todo.index_due_at(some_date)  # Automatically includes WHERE completed = false
+Todo.where_index_due_at(some_date)  # Automatically includes WHERE completed = false
 ```
 
 ### 🚀 JSONB Operations (No SQL Required)
 
-Stop writing raw SQL for JSONB queries. IndexAccess turns your GIN indexes into intuitive Ruby methods:
+Stop writing raw SQL for JSONB queries. WhereIndex turns your GIN indexes into intuitive Ruby methods:
 
 ```sql
 CREATE INDEX index_todos_on_metadata ON todos USING gin (metadata);
@@ -134,11 +134,11 @@ CREATE INDEX index_todos_on_metadata ON todos USING gin (metadata);
 
 ```ruby
 # Complex JSONB queries become simple method calls
-Todo.index_metadata_contains(priority: 'high', category: 'work')    # @> operator
-Todo.index_metadata_contained({priority: 'high', status: 'done'})   # <@ operator  
-Todo.index_metadata_has_key('priority')                             # ? operator
-Todo.index_metadata_has_keys(['priority', 'category'])              # ?& operator
-Todo.index_metadata_path('user.preferences.theme', 'dark')          # #>> operator
+Todo.where_index_metadata_contains(priority: 'high', category: 'work')    # @> operator
+Todo.where_index_metadata_contained({priority: 'high', status: 'done'})   # <@ operator  
+Todo.where_index_metadata_has_key('priority')                             # ? operator
+Todo.where_index_metadata_has_keys(['priority', 'category'])              # ?& operator
+Todo.where_index_metadata_path('user.preferences.theme', 'dark')          # #>> operator
 
 # All queries are structured to work well with your GIN index
 ```
@@ -155,7 +155,7 @@ Generated scope for full-text search:
 
 ```ruby
 # Full-text search using @@
-Todo.index_todos_fulltext_search('urgent deadline')
+Todo.where_index_todos_fulltext_search('urgent deadline')
 ```
 
 ### Trigram Similarity with GIN Indexes
@@ -170,7 +170,7 @@ Generated scope:
 
 ```ruby
 # Similarity search with configurable threshold
-Todo.index_title_similar('importante', 0.3)  # Returns results ordered by similarity
+Todo.where_index_title_similar('importante', 0.3)  # Returns results ordered by similarity
 ```
 
 ### Expression Index Support
@@ -185,7 +185,7 @@ Generated scope:
 
 ```ruby
 # Automatically uses the expression index
-Todo.index_lower_title('my important task')
+Todo.where_index_lower_title('my important task')
 ```
 
 ### Chaining Index Scopes
@@ -194,24 +194,24 @@ Index scopes can be chained together for complex queries:
 
 ```ruby
 # Multiple single-column indexes
-Todo.index_user_id(123).index_status('pending').index_priority('high')
+Todo.where_index_user_id(123).index_status('pending').index_priority('high')
 
 # Chain with regular ActiveRecord methods
-Todo.index_due_at(Date.today).limit(10).order(:created_at)
+Todo.where_index_due_at(Date.today).limit(10).order(:created_at)
 
 # Combine with custom scopes
-Todo.index_user_id(user.id).recent.completed
+Todo.where_index_user_id(user.id).recent.completed
 ```
 
 ### Advanced Composite Index Usage
 
-For complex composite indexes, IndexAccess supports flexible argument patterns:
+For complex composite indexes, WhereIndex supports flexible argument patterns:
 
 ```ruby
 # Given: CREATE INDEX idx_complex ON todos (user_id, status, due_at, priority)
 
 # Full specification (most performant)
-Todo.index_user_id_status_due_at_priority(
+Todo.where_index_user_id_status_due_at_priority(
   user_id: 123, 
   status: 'pending', 
   due_at: Date.today, 
@@ -219,10 +219,10 @@ Todo.index_user_id_status_due_at_priority(
 )
 
 # Partial specification (uses index prefix)
-Todo.index_user_id_status_due_at_priority(user_id: 123, status: 'pending')
+Todo.where_index_user_id_status_due_at_priority(user_id: 123, status: 'pending')
 
 # Hash-based syntax for readability
-Todo.index_user_id_status_due_at_priority({
+Todo.where_index_user_id_status_due_at_priority({
   user_id: 123,
   status: 'pending'
 })
@@ -230,11 +230,11 @@ Todo.index_user_id_status_due_at_priority({
 
 ## Configuration
 
-Configure IndexAccess in an initializer:
+Configure WhereIndex in an initializer:
 
 ```ruby
 # config/initializers/index_access.rb
-IndexAccess.configure do |config|
+WhereIndex.configure do |config|
   # Customize scope naming convention
   config.scope_prefix = 'index_'
   

@@ -2,7 +2,7 @@ require "test_helper"
 
 class TestIndexAnalyzer < Minitest::Test
   def setup
-    @analyzer = IndexAccess::IndexAnalyzer.new(Todo)
+    @analyzer = WhereIndex::IndexAnalyzer.new(Todo)
   end
 
   def test_analyze_indexes
