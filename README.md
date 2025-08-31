@@ -112,17 +112,33 @@ Todo.where_index_user_id_and_status(user_id: 123)
 
 ### Partial Index Support
 
-For partial indexes with conditions:
+Partial indexes automatically generate scopes that include their WHERE conditions, making it impossible to forget the optimization constraints:
 
 ```sql
-CREATE INDEX index_todos_on_due_at WHERE completed = false;
+-- Partial index for pending todos only
+CREATE INDEX idx_todos_user_pending ON todos (user_id) WHERE status = 'pending';
+
+-- Partial index for incomplete todos only  
+CREATE INDEX index_todos_on_due_at_incomplete ON todos (due_at) WHERE completed = false;
 ```
 
-The generated scope will automatically include the partial index conditions:
+WhereIndex generates scopes using the index name that automatically apply the WHERE conditions:
 
 ```ruby
-Todo.where_index_due_at(some_date)  # Automatically includes WHERE completed = false
+# Automatically includes WHERE status = 'pending'
+Todo.idx_todos_user_pending(user_id: 123)        # Get pending todos for user 123
+Todo.idx_todos_user_pending                      # Get all pending todos
+
+# Automatically includes WHERE completed = false
+Todo.todos_on_due_at_incomplete(Date.today)      # Get incomplete todos due today
+Todo.todos_on_due_at_incomplete                  # Get all incomplete todos
 ```
+
+**Key Benefits:**
+- **Automatic WHERE clause application** - Never forget the partial index conditions
+- **Descriptive scope names** - Uses actual index names for clarity
+- **Flexible usage** - Call with or without additional filters
+- **Performance guaranteed** - Always leverages the partial index optimization
 
 ### 🚀 JSONB Operations (No SQL Required)
 
