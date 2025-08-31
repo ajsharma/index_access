@@ -130,4 +130,49 @@ class TestIndexAnalyzer < Minitest::Test
 
     rails_index_mock.verify
   end
+
+  def test_parse_where_conditions_with_string_equality
+    conditions = @analyzer.send(:parse_where_conditions, "status = 'pending'")
+    assert_equal({ status: "pending" }, conditions)
+  end
+
+  def test_parse_where_conditions_with_boolean_equality
+    conditions = @analyzer.send(:parse_where_conditions, "completed = false")
+    assert_equal({ completed: false }, conditions)
+  end
+
+  def test_parse_where_conditions_with_multiple_conditions
+    conditions = @analyzer.send(:parse_where_conditions, "(status = 'pending') AND (completed = false)")
+    assert_equal({ status: "pending", completed: false }, conditions)
+  end
+
+  def test_parse_where_conditions_with_is_null
+    conditions = @analyzer.send(:parse_where_conditions, "deleted_at IS NULL")
+    assert_equal({ deleted_at: nil }, conditions)
+  end
+
+  def test_parse_where_conditions_with_is_not_null
+    conditions = @analyzer.send(:parse_where_conditions, "published_at IS NOT NULL")
+    assert_equal({ published_at_not_null: true }, conditions)
+  end
+
+  def test_parse_where_conditions_with_blank_clause
+    conditions = @analyzer.send(:parse_where_conditions, "")
+    assert_equal({}, conditions)
+
+    conditions = @analyzer.send(:parse_where_conditions, nil)
+    assert_equal({}, conditions)
+  end
+
+  def test_partial_indexes_include_where_conditions
+    partial_indexes = @analyzer.partial_indexes
+
+    # Find the partial index we created in the test setup
+    partial_index = partial_indexes.find { |idx| idx[:name] == "index_todos_on_due_at_incomplete" }
+
+    assert partial_index, "Expected to find partial index for incomplete todos"
+    # PostgreSQL returns WHERE clauses with parentheses
+    assert_match(/completed\s*=\s*false/, partial_index[:where])
+    assert_equal({ completed: false }, partial_index[:where_conditions])
+  end
 end
