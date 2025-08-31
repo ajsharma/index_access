@@ -25,11 +25,11 @@ As Rails applications scale, teams optimize with PostgreSQL indexes. But here's 
 
 ```ruby
 # You carefully craft an index
-CREATE INDEX CONCURRENTLY idx_todos_user_status ON todos (user_id, status);
+CREATE INDEX CONCURRENTLY idx_todos_user_pending ON todos (user_id) WHERE status = 'pending';
 
 # Months later, someone "improves" the code
 # OLD: Todo.where(user_id: user.id, status: 'pending')  ✅ Uses index
-# NEW: Todo.where(user_id: user.id).where(status: 'pending')  ❌ Might not!
+# NEW: Todo.where(user_id: user.id).where(status: status)  ❌ Might not!
 
 # Result: Queries slow down, customers complain, incidents happen
 ```
