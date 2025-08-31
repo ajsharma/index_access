@@ -32,6 +32,9 @@ CREATE INDEX CONCURRENTLY idx_todos_user_pending ON todos (user_id) WHERE status
 # NEW: Todo.where(user_id: user.id).where(status: status)  ❌ Might not!
 
 # Result: Queries slow down, customers complain, incidents happen
+
+# With gem:
+# Todo.idx_todos_user_pending(user_id: user.id)  ✅ Uses index
 ```
 
 **The real problem:** Rails makes it unclear when queries are designed to leverage indexes. Teams lose track of which optimizations exist and how to use them properly.
