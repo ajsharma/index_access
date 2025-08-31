@@ -41,8 +41,8 @@ def ensure_env_local
   password = ""
 
   # Create POSTGRES_URL format for both dev and test
-  dev_url = "postgresql://#{username}:#{password}@#{host}:#{port}/index_access_development"
-  test_url = "postgresql://#{username}:#{password}@#{host}:#{port}/index_access_test"
+  dev_url = "postgresql://#{username}:#{password}@#{host}:#{port}/where_index_development"
+  test_url = "postgresql://#{username}:#{password}@#{host}:#{port}/where_index_test"
 
   env_content = <<~ENV
     # Local PostgreSQL configuration
@@ -219,15 +219,15 @@ ensure_env_local
 ensure_postgres_user
 
 # Create databases
-create_database("index_access_development")
-create_database("index_access_test")
+create_database("where_index_development")
+create_database("where_index_test")
 
 # Setup schemas
-setup_schema("index_access_development")
-setup_schema("index_access_test")
+setup_schema("where_index_development")
+setup_schema("where_index_test")
 
 puts "\nDatabase setup complete!"
-puts "Development database: index_access_development"
-puts "Test database: index_access_test"
+puts "Development database: where_index_development"
+puts "Test database: where_index_test"
 puts "\nConfiguration saved in .env.local"
 puts "You can now run your tests or start development."

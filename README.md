@@ -252,7 +252,7 @@ Todo.where_index_user_id_status_due_at_priority({
 Configure WhereIndex in an initializer:
 
 ```ruby
-# config/initializers/index_access.rb
+# config/initializers/where_index.rb
 WhereIndex.configure do |config|
   # Customize scope naming convention
   config.scope_prefix = 'index_'
@@ -285,7 +285,7 @@ To install this gem onto your local machine, run `bundle exec rake install`.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/ajsharma/index_access.
+Bug reports and pull requests are welcome on GitHub at https://github.com/ajsharma/where_index.
 
 ## License
 

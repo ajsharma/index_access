@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in index_access.gemspec
+# Specify your gem's dependencies in where_index.gemspec
 gemspec
 
 group :development, :test do

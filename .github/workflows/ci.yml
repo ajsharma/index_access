@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: index_access_test
+          POSTGRES_DB: where_index_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -48,7 +48,7 @@ jobs:
 
     - name: Setup database
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/index_access_test
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/where_index_test
       run: |
         psql -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;' $DATABASE_URL
 
@@ -62,7 +62,7 @@ jobs:
 
     - name: Run tests
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/index_access_test
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/where_index_test
         BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails-version }}.gemfile
       run: |
         bundle exec rake test
