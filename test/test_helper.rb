@@ -9,7 +9,7 @@ require "active_record"
 require "pg"
 # Mock Rails module with schema cache configuration
 module Rails
-  def self.respond_to?(method)
+  def self.respond_to?(method, _include_all = false) # rubocop:disable Style/OptionalBooleanParameter
     method == :application
   end
 
@@ -43,7 +43,7 @@ module Rails
   end
 end
 
-require "index_access"
+require "where_index"
 require "minitest/autorun"
 
 # Setup PostgreSQL database for testing
@@ -124,7 +124,7 @@ end
 
 # Test models
 class Todo < ActiveRecord::Base
-  include IndexAccess::ModelExtension
+  include WhereIndex::ModelExtension
 
   belongs_to :user, optional: true
 
@@ -141,11 +141,11 @@ class Todo < ActiveRecord::Base
 end
 
 class User < ActiveRecord::Base
-  include IndexAccess::ModelExtension
+  include WhereIndex::ModelExtension
 
   has_many :todos
 end
 
 class Document < ActiveRecord::Base
-  include IndexAccess::ModelExtension
+  include WhereIndex::ModelExtension
 end

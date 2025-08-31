@@ -1,9 +1,9 @@
-module IndexAccess
+module WhereIndex
   module ModelExtension
     extend ActiveSupport::Concern
 
     included do
-      after_initialize :generate_index_scopes, if: -> { IndexAccess.configuration.auto_generate }
+      after_initialize :generate_index_scopes, if: -> { WhereIndex.configuration.auto_generate }
     end
 
     class_methods do
@@ -12,7 +12,7 @@ module IndexAccess
       end
 
       def index_scopes
-        methods.grep(/^#{IndexAccess.configuration.scope_prefix}/)
+        methods.grep(/^#{WhereIndex.configuration.scope_prefix}/)
       end
     end
 

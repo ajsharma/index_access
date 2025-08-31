@@ -1,4 +1,4 @@
-module IndexAccess
+module WhereIndex
   class ScopeGenerator
     def initialize(model_class)
       @model_class = model_class
@@ -6,7 +6,7 @@ module IndexAccess
     end
 
     def generate_scopes
-      return unless IndexAccess.configuration.include_model?(@model_class.name)
+      return unless WhereIndex.configuration.include_model?(@model_class.name)
 
       @analyzer.analyze_indexes.each do |index|
         generate_scope_for_index(index)
@@ -84,7 +84,7 @@ module IndexAccess
     end
 
     def build_scope_name(index)
-      prefix = IndexAccess.configuration.scope_prefix
+      prefix = WhereIndex.configuration.scope_prefix
       # Check if any column contains expressions (functions, operators, etc.)
       has_expressions = index[:columns].any? { |col| col.include?("(") || col.include?("::") }
 

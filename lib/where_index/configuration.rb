@@ -1,9 +1,9 @@
-module IndexAccess
+module WhereIndex
   class Configuration
     attr_accessor :scope_prefix, :auto_generate, :included_models, :excluded_models
 
     def initialize
-      @scope_prefix = "index_"
+      @scope_prefix = "where_index_"
       @auto_generate = true
       @included_models = []
       @excluded_models = []
